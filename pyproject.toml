@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hound-mcp"
+version = "0.1.0"
+description = "Token-budgeted, self-healing browser automation MCP server for AI agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "mcp>=1.0",
+    "playwright>=1.45",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+hound-mcp = "hound.mcp.server:main"
+
+[tool.setuptools.packages.find]
+include = ["hound*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "C4", "RET", "SIM"]
+ignore = ["S101"]

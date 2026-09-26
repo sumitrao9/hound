@@ -1,0 +1,34 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Test + benchmark output
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+bench/results.json
+
+# Selector healing database - learned state, not source
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Browser profile state
+profile/
+user-data-dir/
+
+.DS_Store
+.idea/
+.vscode/
