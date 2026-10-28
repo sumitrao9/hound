@@ -1,14 +1,38 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hound-mcp"
+name = "hound-browser-mcp"
 version = "0.1.0"
 description = "Token-budgeted, self-healing browser automation MCP server for AI agents"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Sumit Yadav" }]
+keywords = [
+    "mcp",
+    "model-context-protocol",
+    "browser-automation",
+    "playwright",
+    "ai-agents",
+    "token-optimization",
+    "accessibility-tree",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "mcp>=1.0",
     "playwright>=1.45",
@@ -19,13 +43,22 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "ruff>=0.5",
+    "build>=1.2",
+    "twine>=5.0",
 ]
 
 [project.scripts]
 hound-mcp = "hound.mcp.server:main"
+hound-bench = "bench.run:cli"
+
+[project.urls]
+Homepage = "https://github.com/sumitrao9/hound"
+Repository = "https://github.com/sumitrao9/hound"
+Issues = "https://github.com/sumitrao9/hound/issues"
+Benchmark = "https://github.com/sumitrao9/hound/blob/main/docs/benchmark.html"
 
 [tool.setuptools.packages.find]
-include = ["hound*"]
+include = ["hound*", "bench*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

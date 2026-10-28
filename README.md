@@ -83,33 +83,55 @@ scrapers silently start returning the wrong data, which is worse than failing lo
 
 ## Measured results
 
-Reproduce with `python -m bench.run`. The comparison drives the same scripted flow twice: once
+Reproduce it yourself with `hound-bench` — the same scripted flow is driven twice: once
 emulating a snapshot-per-action server (full ARIA tree + page text on every call), once with
 Hound's budgeted delta responses.
 
-**8-step flow, budget 1,200 tokens, profile `balanced`:**
+**8-step flow, budget 1,200 tokens, measured 28 Oct 2026:**
 
-| Page | DOM elements | Snapshot-per-action | Hound | Reduction |
-|---|---:|---:|---:|---:|
-| news.ycombinator.com | 814 | 93,194 | 805 | **99.1%** |
-| en.wikipedia.org/wiki/Web_scraping | 2,153 | 210,272 | 1,003 | **99.5%** |
-| python.org | 900 | 47,100 | 936 | **98.0%** |
-| **Total** | | **350,566** | **2,744** | **99.2%** |
+| Page | Snapshot-per-action | Hound | Reduction |
+|---|---:|---:|---:|
+| example.com | 8,781 | 845 | **90.4%** |
+| news.ycombinator.com | 93,485 | 806 | **99.1%** |
+| en.wikipedia.org/wiki/Web_scraping | 209,701 | 974 | **99.5%** |
+| **Total** | **311,967** | **2,625** | **99.2%** |
 
-The 10-step flow these pages produce costs a conventional server ~350k tokens. Hound spends under
-3k — roughly **$10.50 in Claude Sonnet input tokens versus $1,050**, on the same work.
+The saving scales with page size — a near-empty page saves 90%, a long article 99.5% — because
+Hound's cost tracks *change*, not page size. Per-step numbers and the method are on the
+[benchmark page](docs/benchmark.html); raw output is in
+[`bench/results/2026-10-28.json`](bench/results/2026-10-28.json).
 
 Honest caveat: on the *first* snapshot Hound pays for the page, because it has no baseline to diff
-against. That step shows a real 20–44x saving rather than being free. The saving comes from every
-subsequent call, which is where the cost actually accumulates.
+against. That step is a real 1.9–43x saving rather than free. The saving compounds on every
+subsequent call, which is where cost actually accumulates. These are single runs, not averages —
+absolute numbers drift as page content changes.
 
 ## Install
 
 ```bash
+pip install hound-browser-mcp
+playwright install chromium
+```
+
+From source, for development:
+
+```bash
+git clone https://github.com/sumitrao9/hound && cd hound
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 playwright install chromium
 ```
+
+## Benchmark it
+
+```bash
+hound-bench                                  # default pages
+hound-bench --url https://your-site.example  # any page
+hound-bench --json out.json                  # raw numbers
+```
+
+The benchmark is the project's central claim, so it ships in the wheel and is meant to be run,
+not believed: see [docs/benchmark.html](docs/benchmark.html) for the method and results.
 
 ## Use
 

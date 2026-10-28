@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hound — token benchmark, reproducible</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14181d;
+    --line: #232a32;
+    --ink: #e8edf2;
+    --muted: #93a1b0;
+    --accent: #7ee0a8;
+    --warn: #f0b45e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fbfcfd;
+      --panel: #ffffff;
+      --line: #e3e8ee;
+      --ink: #111820;
+      --muted: #5b6b7c;
+      --accent: #147d4b;
+      --warn: #9a5b00;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.6 ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  }
+  main { max-width: 900px; margin: 0 auto; padding: 56px 24px 96px; }
+  h1 { font-size: 2.1rem; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.02em; }
+  h2 { font-size: 1.15rem; margin: 44px 0 12px; letter-spacing: -0.01em; }
+  p { color: var(--muted); margin: 0 0 14px; }
+  p.lede { font-size: 1.06rem; color: var(--ink); }
+  a { color: var(--accent); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; font-size: 0.9em; }
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px; overflow-x: auto; font-size: 0.86rem; line-height: 1.55; margin: 0 0 14px;
+  }
+  .hero {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px; margin: 28px 0 8px;
+  }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .stat .n { font-size: 1.7rem; font-weight: 650; letter-spacing: -0.02em; }
+  .stat .k { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat.good .n { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 6px; font-size: 0.92rem; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 550; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  tr.total td { font-weight: 650; border-bottom: 2px solid var(--line); }
+  td.num { font-variant-numeric: tabular-nums; font-family: ui-monospace, Menlo, monospace; }
+  .note {
+    border-left: 3px solid var(--warn); background: var(--panel);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 18px 0;
+  }
+  .note p { margin: 0; color: var(--ink); font-size: 0.92rem; }
+  ul { color: var(--muted); padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Hound sends the diff, not the page</h1>
+  <p class="lede">
+    Every mainstream browser-automation MCP server returns the page's full accessibility tree
+    on <em>every</em> action. Hound budgets each response and returns only what changed.
+    Measured here, on three real pages, in an 8-step agent flow.
+  </p>
+
+  <div class="hero">
+    <div class="stat good"><div class="n">99.2%</div><div class="k">fewer tokens</div></div>
+    <div class="stat"><div class="n">311,967</div><div class="k">conventional total</div></div>
+    <div class="stat"><div class="n">2,625</div><div class="k">hound total</div></div>
+    <div class="stat"><div class="n">3</div><div class="k">pages measured</div></div>
+  </div>
+  <p style="font-size:0.85rem">Measured 28 October 2026 · budget 1,200 tokens/call · 8-step flow · single run per page.</p>
+
+  <h2>Results</h2>
+  <table>
+    <thead>
+      <tr><th>Page</th><th>Conventional</th><th>Hound</th><th>Saved</th><th>Reduction</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>example.com</td>
+        <td class="num">8,781</td><td class="num">845</td><td class="num">7,936</td><td class="num">90.4%</td>
+      </tr>
+      <tr>
+        <td>news.ycombinator.com</td>
+        <td class="num">93,485</td><td class="num">806</td><td class="num">92,679</td><td class="num">99.1%</td>
+      </tr>
+      <tr>
+        <td>en.wikipedia.org/wiki/Web_scraping</td>
+        <td class="num">209,701</td><td class="num">974</td><td class="num">208,727</td><td class="num">99.5%</td>
+      </tr>
+      <tr class="total">
+        <td>Total</td>
+        <td class="num">311,967</td><td class="num">2,625</td><td class="num">309,342</td><td class="num">99.2%</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.85rem">
+    The gap widens with page size: 91% on a near-empty page, 99.5% on a long Wikipedia article.
+    That is the point — cost becomes a function of <em>change</em>, not page size.
+  </p>
+
+  <h2>Where the saving comes from</h2>
+  <p>Per-step detail for news.ycombinator.com, the same flow with both strategies:</p>
+  <table>
+    <thead><tr><th>Step</th><th>Conventional</th><th>Hound</th><th>Ratio</th></tr></thead>
+    <tbody>
+      <tr><td>open</td><td class="num">11,683</td><td class="num">570</td><td class="num">20.5×</td></tr>
+      <tr><td>snapshot</td><td class="num">11,683</td><td class="num">29</td><td class="num">402.9×</td></tr>
+      <tr><td>act:click</td><td class="num">11,683</td><td class="num">29</td><td class="num">402.9×</td></tr>
+      <tr><td>snapshot</td><td class="num">11,683</td><td class="num">29</td><td class="num">402.9×</td></tr>
+      <tr><td>snapshot</td><td class="num">11,683</td><td class="num">29</td><td class="num">402.9×</td></tr>
+      <tr><td>act:fill</td><td class="num">11,690</td><td class="num">62</td><td class="num">188.5×</td></tr>
+      <tr><td>snapshot</td><td class="num">11,690</td><td class="num">29</td><td class="num">403.1×</td></tr>
+      <tr><td>snapshot</td><td class="num">11,690</td><td class="num">29</td><td class="num">403.1×</td></tr>
+      <tr class="total"><td>Total</td><td class="num">93,485</td><td class="num">806</td><td class="num">116×</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.85rem">
+    Conventional pays the full tree eight times. Hound pays once on <code>open</code>, then a
+    29-token "nothing changed" delta per follow-up.
+  </p>
+
+  <h2>Method</h2>
+  <ul>
+    <li><strong>Conventional</strong> = what a snapshot-per-action server returns after each
+      action: the full accessibility snapshot plus up to 40,000 characters of page text, with
+      no memory of what the agent already saw.</li>
+    <li><strong>Hound</strong> = the budgeted response for the same step, computed as a delta
+      against the previous state (1,200-token budget, <code>minimal</code> profile for
+      snapshots).</li>
+    <li>Both are measured on the <em>same</em> page in the <em>same</em> browser session, after
+      the same action — never against a stale document.</li>
+    <li>If a page has no element matching a step (e.g. no search box), that step is dropped from
+      <em>both</em> sides rather than crediting Hound for work it didn't do.</li>
+    <li>Tokens are estimated with Hound's own estimator, the same one it budgets against.</li>
+  </ul>
+
+  <div class="note">
+    <p><strong>Honest caveats.</strong> This is a single run per page, not an average; page
+    content changes over time, so absolute numbers drift. The estimator is a model, not a real
+    tokenizer. And the comparison is against a <em>snapshot-per-action</em> server — a server
+    that already sends diffs would narrow this gap. The claim is narrow on purpose: Hound
+    removes the repeated full-tree cost.</p>
+  </div>
+
+  <h2>Reproduce it</h2>
+  <p>Two commands, no account, no API key:</p>
+  <pre><code>pip install hound-browser-mcp
+playwright install chromium
+
+hound-bench                      # default pages
+hound-bench --url https://your-page.example --json out.json
+hound-bench --pages 3 --budget 1200 --profile balanced</code></pre>
+  <p>
+    Or from source:
+    <code>pip install -e ".[dev]" &amp;&amp; python -m bench.run --url https://news.ycombinator.com</code>
+  </p>
+  <p>
+    Raw output for the run above is committed at
+    <a href="https://github.com/sumitrao9/hound/blob/main/bench/results/2026-10-28.json">bench/results/2026-10-28.json</a>.
+    If your numbers differ, your page changed or your budget did — that is the benchmark working
+    as intended, not breaking.
+  </p>
+
+  <footer>
+    Hound — a token-budgeted, self-healing browser automation MCP server.
+    <a href="https://github.com/sumitrao9/hound">Source on GitHub</a>.
+  </footer>
+</main>
+</body>
+</html>

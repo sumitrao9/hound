@@ -290,5 +290,10 @@ async def main() -> int:
     return 0
 
 
+def cli() -> int:
+    """Console entry point (``hound-bench``)."""
+    return asyncio.run(main())
+
+
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(main()))
+    raise SystemExit(cli())
