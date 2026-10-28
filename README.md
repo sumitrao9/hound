@@ -2,6 +2,11 @@
 
 **A token-budgeted, self-healing browser automation MCP server for AI agents.**
 
+[![CI](https://github.com/sumitrao9/hound/actions/workflows/ci.yml/badge.svg)](https://github.com/sumitrao9/hound/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![MCP](https://img.shields.io/badge/MCP-compatible-6b4fbb)
+
 Hound exists because of a specific, measured, and completely unfixed problem: every mainstream
 browser-automation MCP server returns the page's full accessibility tree on *every* action, so
 per-action cost is O(page size) and total context growth is O(number of actions).
