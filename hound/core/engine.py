@@ -118,7 +118,7 @@ DOM_EXTRACTOR = """
     title: document.title,
     text: (document.body
         ? document.body.innerText
-        : '').replace(/\s+/g, ' ').trim().slice(0, 40000),
+        : '').replace(/\\s+/g, ' ').trim().slice(0, 40000),
     elements,
   };
 }
