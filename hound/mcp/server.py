@@ -11,9 +11,8 @@ selector "probably works". Every response states what was verified.
 
 from __future__ import annotations
 
+import logging
 import os
-from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
@@ -24,10 +23,34 @@ from hound.core.budget import Budget, Profile, estimate_tokens
 from hound.core.engine import BudgetedBrowser
 from hound.healing.selectors import SelectorStore
 
+_log = logging.getLogger(__name__)
+
 SERVER_NAME = "hound"
 DEFAULT_DB = os.environ.get("HOUND_DB", "hound-selectors.db")
 MAX_BUDGET_TOKENS = int(os.environ.get("HOUND_MAX_BUDGET", "20000"))
 DEFAULT_BUDGET_TOKENS = int(os.environ.get("HOUND_DEFAULT_BUDGET", "1200"))
+
+def prop(name, type, description, **extra):
+    schema = {"type": type, "description": description}
+    schema.update(extra)
+    return name, schema
+
+
+def budget_prop():
+    return prop(
+        "max_tokens", "integer",
+        f"Token ceiling. Default {DEFAULT_BUDGET_TOKENS}.",
+        default=DEFAULT_BUDGET_TOKENS, maximum=MAX_BUDGET_TOKENS,
+    )
+
+
+def profile_prop(default=Profile.BALANCED):
+    return prop(
+        "profile", "string",
+        "How much of the page to return. Default balanced.",
+        enum=[p.value for p in Profile], default=default.value,
+    )
+
 
 TOOLS = [
     Tool(
@@ -38,26 +61,13 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "url": {"type": "string", "description": "Absolute URL to open."},
-                "max_tokens": {
-                    "type": "integer",
-                    "description": f"Token ceiling for the response. Default {DEFAULT_BUDGET_TOKENS}.",
-                    "default": DEFAULT_BUDGET_TOKENS,
-                    "maximum": MAX_BUDGET_TOKENS,
-                },
-                "profile": {
-                    "type": "string",
-                    "enum": [p.value for p in Profile],
-                    "description": "How much of the page to return. Default balanced.",
-                    "default": Profile.BALANCED.value,
-                },
-                "wait_until": {
-                    "type": "string",
-                    "enum": ["load", "domcontentloaded", "networkidle"],
-                    "default": "load",
-                },
-            },
+            "properties": dict([
+                prop("url", "string", "Absolute URL to open."),
+                budget_prop(),
+                profile_prop(),
+                prop("wait_until", "string", "How long to wait for the page.",
+                     enum=["load", "domcontentloaded", "networkidle"], default="load"),
+            ]),
             "required": ["url"],
         },
     ),
@@ -70,13 +80,11 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "max_tokens": {"type": "integer", "default": DEFAULT_BUDGET_TOKENS,
-                               "maximum": MAX_BUDGET_TOKENS},
-                "profile": {"type": "string", "enum": [p.value for p in Profile],
-                            "default": Profile.BALANCED.value},
-                "full_snapshot": {"type": "boolean", "default": False},
-            },
+            "properties": dict([
+                budget_prop(),
+                profile_prop(),
+                prop("full_snapshot", "boolean", "Return every element ref.", default=False),
+            ]),
         },
     ),
     Tool(
@@ -88,15 +96,14 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "action": {"type": "string", "enum": ["click", "fill", "press", "select"]},
-                "target": {"type": "string", "description": "Element ref (e3) or CSS selector."},
-                "value": {"type": "string", "description": "Text for fill, key for press, option for select."},
-                "max_tokens": {"type": "integer", "default": DEFAULT_BUDGET_TOKENS,
-                               "maximum": MAX_BUDGET_TOKENS},
-                "profile": {"type": "string", "enum": [p.value for p in Profile],
-                            "default": Profile.MINIMAL.value},
-            },
+            "properties": dict([
+                prop("action", "string", "Action to perform.",
+                     enum=["click", "fill", "press", "select"]),
+                prop("target", "string", "Element ref (e3) or CSS selector."),
+                prop("value", "string", "Text for fill, key for press, option for select."),
+                budget_prop(),
+                profile_prop(default=Profile.MINIMAL),
+            ]),
             "required": ["action", "target"],
         },
     ),
@@ -109,11 +116,12 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "text": {"type": "string", "description": "Substring of the accessible name."},
-                "role": {"type": "string", "description": "Optional role filter, e.g. link, button."},
-                "limit": {"type": "integer", "default": 10, "maximum": 50},
-            },
+            "properties": dict([
+                prop("text", "string", "Substring of the accessible name."),
+                prop("role", "string", "Optional role filter, e.g. link, button."),
+                prop("limit", "integer", "Maximum number of refs to return.",
+                     default=10, maximum=50),
+            ]),
             "required": ["text"],
         },
     ),
@@ -126,16 +134,12 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "root": {"type": "string", "description": "Repeating container selector, e.g. 'li.job'."},
-                "fields": {
-                    "type": "object",
-                    "description": "Map of output field name to CSS selector within each container.",
-                    "additionalProperties": {"type": "string"},
-                },
-                "max_tokens": {"type": "integer", "default": DEFAULT_BUDGET_TOKENS,
-                               "maximum": MAX_BUDGET_TOKENS},
-            },
+            "properties": dict([
+                prop("root", "string", "Repeating container selector, e.g. 'li.job'."),
+                prop("fields", "object", "Map of output field name to CSS selector.",
+                     additionalProperties={"type": "string"}),
+                budget_prop(),
+            ]),
             "required": ["root", "fields"],
         },
     ),
@@ -148,13 +152,10 @@ TOOLS = [
         ),
         inputSchema={
             "type": "object",
-            "properties": {
-                "selector": {"type": "string", "description": "The selector that stopped working."},
-                "logical_key": {
-                    "type": "string",
-                    "description": "Stable name for what this selector targets, e.g. 'search_button'.",
-                },
-            },
+            "properties": dict([
+                prop("selector", "string", "The selector that stopped working."),
+                prop("logical_key", "string", "Stable name for this selector, e.g. 'search_button'."),  # noqa: E501
+            ]),
             "required": ["selector", "logical_key"],
         },
     ),
@@ -199,8 +200,8 @@ class HoundServer:
             if closer is not None:
                 try:
                     await closer.close()
-                except Exception:
-                    pass
+                except Exception as exc:
+                    _log.debug("failed to close %r: %s", closer, exc)
         if getattr(self, "_pw", None) is not None:
             await self._pw.stop()
         self.store.close()
@@ -263,8 +264,8 @@ class HoundServer:
             for e in state.elements
             if needle in e.name.lower() and (role is None or e.role == role)
         ][:limit]
-        from hound.core.engine import ActionResult
         from hound.core.budget import BudgetReport
+        from hound.core.engine import ActionResult
 
         payload = {"found": len(matches), "matches": matches}
         report = BudgetReport(
@@ -306,7 +307,6 @@ class HoundServer:
         # most common failure mode of automated extraction.
         confidence = round(filled / total, 3) if total else 0.0
 
-        from hound.core.budget import BudgetReport
         from hound.core.engine import ActionResult
 
         budget = self._budget(args)

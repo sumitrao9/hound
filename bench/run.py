@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import statistics
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -107,7 +106,9 @@ ARIA_SNAPSHOT_JS = """
            H3: 'heading', H4: 'heading', LI: 'listitem', TR: 'row', TD: 'cell'})[el.tagName]
       || '';
     const name = (el.getAttribute('aria-label') || el.innerText || '').trim().slice(0, 120);
-    if (role || name) out.push('- '.repeat(depth) + '[' + (role || el.tagName.toLowerCase()) + '] ' + name);
+    if (role || name) {
+      out.push('- '.repeat(depth) + '[' + (role || el.tagName.toLowerCase()) + '] ' + name);
+    }
     for (const child of el.children) walk(child, depth + 1);
   };
   walk(document.body, 0);
@@ -151,7 +152,7 @@ async def run_page(url: str, *, budget_tokens: int, profile: Profile) -> Result:
         context = await browser.new_context()
         page = await context.new_page()
 
-        engine = BudgetedBrowser(page, default_budget=Budget(max_tokens=budget_tokens, profile=profile))
+        engine = BudgetedBrowser(page, default_budget=Budget(max_tokens=budget_tokens, profile=profile))  # noqa: E501
         result = Result(url=url, dom_elements=0)
 
         for step in FLOW:

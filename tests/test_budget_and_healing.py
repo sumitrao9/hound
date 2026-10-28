@@ -5,7 +5,6 @@ stopped working, the entire premise of Hound would be false. The browser-backed
 behaviour is exercised separately in ``test_engine_live.py``.
 """
 
-import json
 
 import pytest
 
@@ -23,7 +22,6 @@ from hound.healing.selectors import (
     heal,
     score_candidate,
 )
-
 
 # -- budget ----------------------------------------------------------------
 
@@ -52,14 +50,16 @@ def test_response_within_budget_is_untouched():
 
 
 def test_oversized_response_degrades_to_a_cheaper_profile():
-    payload = {"elements": [{"ref": f"e{i}", "role": "link", "name": "x" * 400} for i in range(200)]}
+    payload = {
+        "elements": [{"ref": f"e{i}", "role": "link", "name": "x" * 400} for i in range(200)]
+    }
     budget = Budget(max_tokens=200, profile=Profile.FULL)
 
     def rebuild(profile: Profile):
         if profile is Profile.MINIMAL:
             return {"elements": [{"ref": f"e{i}", "role": "link"} for i in range(5)]}
         if profile is Profile.BALANCED:
-            return {"elements": [{"ref": f"e{i}", "role": "link", "name": "x" * 40} for i in range(20)]}
+            return {"elements": [{"ref": f"e{i}", "role": "link", "name": "x" * 40} for i in range(20)]}  # noqa: E501
         return None
 
     out, report = fit_to_budget(payload, budget, rebuild=rebuild)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from hound.core.budget import Budget, BudgetReport, Profile, estimate_tokens, fit_to_budget
 from hound.core.refs import PageState, build_state, diff
@@ -116,7 +116,9 @@ DOM_EXTRACTOR = """
   return {
     url: location.href,
     title: document.title,
-    text: (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').trim().slice(0, 40000),
+    text: (document.body
+        ? document.body.innerText
+        : '').replace(/\s+/g, ' ').trim().slice(0, 40000),
     elements,
   };
 }
@@ -247,7 +249,8 @@ class BudgetedBrowser:
 
     def _rebuilder(self, state: PageState, *, delta: bool):
         def rebuild(profile: Profile) -> dict[str, Any] | None:
-            return self._build(state, profile, delta=delta, with_text=profile is not Profile.MINIMAL)
+            with_text = profile is not Profile.MINIMAL
+            return self._build(state, profile, delta=delta, with_text=with_text)
 
         return rebuild
 
@@ -430,19 +433,21 @@ class BudgetedBrowser:
         return outcome
 
     async def goto(self, url: str, **kwargs) -> ActionResult:
-        started = time.perf_counter()
         await self.page.goto(url, **kwargs)
         self._previous = None
         return await self.snapshot(delta=False)
 
     async def verify(self, selector: str) -> ActionResult:
-        state = await self._capture()
         matches = self.page.locator(selector).count()
         return ActionResult(
             ok=True,
             data={"selector": selector, "matches": matches},
-            report=BudgetReport(tokens_used=estimate_tokens(selector), max_tokens=self.default_budget.max_tokens,
-                                profile_requested=Profile.MINIMAL, profile_effective=Profile.MINIMAL),
+            report=BudgetReport(
+                tokens_used=estimate_tokens(selector),
+                max_tokens=self.default_budget.max_tokens,
+                profile_requested=Profile.MINIMAL,
+                profile_effective=Profile.MINIMAL,
+            ),
         )
 
     async def close(self) -> None:

@@ -38,10 +38,7 @@ def estimate_tokens(payload: Any) -> int:
     """
     if payload is None:
         return 0
-    if isinstance(payload, str):
-        text = payload
-    else:
-        text = _compact_repr(payload)
+    text = payload if isinstance(payload, str) else _compact_repr(payload)
     return max(1, math.ceil(len(text) / CHARS_PER_TOKEN))
 
 
