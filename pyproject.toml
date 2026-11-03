@@ -63,6 +63,9 @@ include = ["hound*", "bench*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "live: marks tests that require a live browser and network",
+]
 
 [tool.ruff]
 line-length = 100

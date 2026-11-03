@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  hound:
+    build: .
+    container_name: hound-mcp
+    environment:
+      - HOUND_HEADLESS=1
+      - HOUND_DEFAULT_BUDGET=1200
+      - HOUND_MAX_BUDGET=20000
+      - HOUND_DB=/data/hound-selectors.db
+    volumes:
+      - hound-data:/data
+    restart: unless-stopped
+    # For stdio MCP transport, run with: docker run -i hound
+
+volumes:
+  hound-data:
