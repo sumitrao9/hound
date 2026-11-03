@@ -378,7 +378,10 @@ class BudgetedBrowser:
 
     async def _capture(self) -> PageState:
         raw = await self.page.evaluate(DOM_EXTRACTOR)
-        return build_state(self.page.url, raw)
+        title = await self.page.title()
+        text = await self.page.evaluate("() => document.body?.innerText || ''")
+        elements = raw.get("elements", []) if isinstance(raw, dict) else []
+        return build_state(self.page.url, title, text, elements)
 
     async def snapshot(
         self,
@@ -402,14 +405,14 @@ class BudgetedBrowser:
         if self.semantic_differ:
             semantic_changes = self.semantic_differ.compute_semantic_diff(
                 self._previous if delta else None, 
-                self._capture()
+                state
             )
 
         if delta and self._previous is not None:
             diff_result = diff(self._previous, state)
             payload = diff_result
         else:
-            payload = state.to_compact()
+            payload = state.render(budget.profile)
 
         self._previous = state
 
@@ -466,23 +469,22 @@ class BudgetedBrowser:
                     verify=lambda c: self.page.locator(c).first.is_visible() and self.page.locator(c).first.is_enabled(),
                     site=_site_of(self.page.url),
                     logical_key=target,
-                    action=action,
                 )
                 
-                if not config_result.healed:
+                if not heal_result.healed:
                     return self._failure({
                         "error": str(exc)[:300], 
                         "target": target, 
-                        "healing": config_result.to_dict()
+                        "healing": heal_result.to_dict()
                     }, budget, started)
                 
                 # Use healed selector
-                target = config_result.selector
+                target = heal_result.selector
                 
                 # Record cross-site knowledge
                 if self.cross_site_kb:
                     self.cross_site_kb.record_success(
-                        _site_of(self.page.url), config_result.selector, config_result.verified
+                        _site_of(self.page.url), heal_result.selector, heal_result.verified
                     )
                 
                 try:
@@ -605,7 +607,7 @@ class BudgetedBrowser:
     async def goto(self, url: str, **kwargs) -> ActionResult:
         await self._validate_and_goto(url, **kwargs)
         self._previous = None
-        return await self.snapshot(delta=False)
+        return await self.snapshot(budget=self.default_budget, delta=False)
 
     async def verify(self, selector: str) -> ActionResult:
         from hound.core.budget import BudgetReport
@@ -620,6 +622,35 @@ class BudgetedBrowser:
                 profile_effective=Profile.MINIMAL,
             ),
         )
+    async def find(self, text: str, limit: int = 10) -> ActionResult:
+        """Find elements by accessible name or text."""
+        from hound.core.budget import BudgetReport
+        await self._rate_limit(_site_of(self.page.url))
+        state = await self._capture()
+        needle = text.lower()
+        matches = [
+            e.to_compact()
+            for e in state.elements
+            if needle in e.name.lower()
+        ][:limit]
+        
+        payload = {"found": len(matches), "matches": matches}
+        report = BudgetReport(
+            tokens_used=estimate_tokens(payload),
+            max_tokens=self.default_budget.max_tokens,
+            profile_requested=Profile.BALANCED,
+            profile_effective=Profile.BALANCED,
+        )
+        result = ActionResult(ok=True, data=payload, report=report)
+        self._session_spend.append({
+            "tool": "find",
+            "tokens": report.tokens_used,
+            "profile": report.profile_effective.value,
+            "ms": 0,
+        })
+        return result
+
+
 
     async def close(self) -> None:
         if not self._closed:

@@ -133,7 +133,7 @@ class PageState:
     def index(self) -> dict[str, Element]:
         return {e.identity: e for e in self.elements}
 
-    def ordered(self, profile) -> list[Element]:
+    def ordered(self, profile: Profile) -> list[Element]:
         """Elements sorted so that truncation keeps what matters.
 
         Headings and dialogs carry the structure an agent needs to orient
@@ -149,7 +149,7 @@ class PageState:
 
         return sorted(self.elements, key=key)
 
-    def render(self, profile) -> dict[str, Any]:
+    def render(self, profile: Profile) -> dict[str, Any]:
         """Build the payload for a profile, ordered so truncation keeps the
         most important elements (headings, then interactive) rather than whatever
         happened to appear first in the DOM."""

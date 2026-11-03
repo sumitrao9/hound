@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Callable, Optional
 
 CHARS_PER_TOKEN = 4.0
 
@@ -172,7 +172,7 @@ def fit_to_budget(
     rendered: dict[str, Any],
     budget: Budget,
     *,
-    rebuild: callable = None,
+    rebuild: Optional[Callable] = None,
 ) -> tuple[dict[str, Any], BudgetReport]:
     """Clamp ``rendered`` until it fits ``budget``.
 

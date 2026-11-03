@@ -1,7 +1,7 @@
 """Live browser tests for the budgeted engine.
 
 These tests require a live browser and network access.
-Run with: pytest tests/test_engine_live.py -v
+Run with: pytest tests/test_engine_live.py -v -m live
 """
 
 import pytest
@@ -96,7 +96,7 @@ class TestTimeoutConfig:
 class TestBudgetedBrowserLive:
     """Live browser tests - require network and Playwright."""
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     async def browser_page(self):
         from playwright.async_api import async_playwright
         pw = await async_playwright().start()
@@ -216,6 +216,3 @@ class TestBudgetedBrowserLive:
         await engine.snapshot(budget=Budget(max_tokens=100))
         # Third request should be rate limited
         # (This is a basic check - actual rate limiting tested in unit test)
-
-
-# Run with: pytest tests/test_engine_live.py -v -k "live" --timeout=60
