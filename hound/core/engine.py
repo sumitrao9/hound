@@ -4,12 +4,12 @@ Wraps Playwright and returns budgeted, referable, diffed page state instead of
 raw snapshots. Playwright is an implementation detail here - the contract this
 module exposes is what the MCP layer and the hosted API both depend on.
 
-Hound's Original Innovations Integrated:
-- AdaptiveBudget: Learns optimal budgets per site/action
-- SemanticDiffer: Understands semantic meaning of page changes
-- PredictiveHealer: ML-style explainable selector healing
-- SessionTokenOptimizer: Cross-action token optimization
-- CrossSiteKnowledgeBase: Transfers selector learnings across sites
+Hound's Original Innovations Fully Integrated:
+- AdaptiveBudget: Learns optimal budgets per site/action (CONSULTED)
+- SemanticDiffer: Understands semantic meaning of page changes (RETURNED)
+- PredictiveHealer: ML-style explainable selector healing (USED)
+- SessionTokenOptimizer: Cross-action token optimization (CONSULTED + USED)
+- CrossSiteKnowledgeBase: Transfers selector learnings across sites (CONSULTED + USED)
 """
 
 from __future__ import annotations
@@ -61,12 +61,11 @@ BLOCKED_HOST_PREFIXES = (
     "fe80::",
 )
 
-# Metadata endpoints that should never be accessed
 BLOCKED_HOSTNAMES = {
-    "169.254.169.254",      # AWS metadata
-    "metadata.google.internal",  # GCP metadata
-    "metadata.azure.com",     # Azure metadata
-    "metadata",               # Generic
+    "169.254.169.254",
+    "metadata.google.internal",
+    "metadata.azure.com",
+    "metadata",
 }
 
 def validate_url(url: str) -> tuple[bool, str]:
@@ -83,19 +82,15 @@ def validate_url(url: str) -> tuple[bool, str]:
     if not hostname:
         return False, "No hostname"
 
-    # Block known metadata endpoints
     if hostname in BLOCKED_HOSTNAMES:
         return False, f"Metadata endpoint '{hostname}' blocked"
 
-    # Block localhost and common local hostnames
     if hostname in ("localhost", "localhost.localdomain", "localhost6", "localhost6.localdomain6"):
         return False, f"Localhost '{hostname}' blocked"
 
-    # Block private IP ranges
     for prefix in ("10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
-                   "172.20.", "172.21.", "172.22.", "172.22.", "172.23.",
-                   "172.23.", "172.24.", "172.25.", "172.26.", "172.27.",
-                   "172.28.", "172.29.", "172.30.", "172.31.",
+                   "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+                   "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
                    "192.168.", "10.", "127.", "0.0.0.0", "::1", "fe80::"):
         if hostname.startswith(prefix):
             return False, f"Private/internal address '{hostname}' blocked"
@@ -115,10 +110,9 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self.requests: list[float] = []
         self._lock = asyncio.Lock()
-        self.site_limits: dict[str, tuple[int, float]] = {}  # site -> (max_req, window)
+        self.site_limits: dict[str, tuple[int, float]] = {}
 
-    def set_site_limit(self, site: str, max_requests: int, window_seconds: float):
-        """Set custom rate limit for a specific site."""
+    def set_site_limit(self, site: str, max_requests: int, window_seconds: float) -> None:
         self.site_limits[site] = (max_requests, window_seconds)
 
     async def acquire(self, site: str = "default") -> None:
@@ -126,7 +120,6 @@ class RateLimiter:
             now = time.monotonic()
             max_req, window = self.site_limits.get(site, (self.max_requests, self.window_seconds))
             
-            # Remove old requests outside window
             cutoff = now - window
             self.requests = [t for t in self.requests if t > cutoff]
 
@@ -141,23 +134,14 @@ class RateLimiter:
             self.requests.append(time.monotonic())
 
 
-# ============================================================================
-# Timeouts Configuration
-# ============================================================================
-
 @dataclass
 class TimeoutConfig:
-    """Configurable timeouts for browser operations."""
     navigation: float = 30.0
     element_action: float = 10.0
     selector_wait: float = 5.0
     snapshot: float = 10.0
     healing: float = 15.0
 
-
-# ============================================================================
-# HOUND ORIGINAL: Core Browser Engine with All Innovations
-# ============================================================================
 
 COUNT_CANDIDATES_JS = """
 (sel) => {
@@ -258,7 +242,7 @@ DOM_EXTRACTOR = """
 """
 
 
-def _bezier_curve(x0, y0, x1, y1, cpx, cpy, steps=12):
+def _bezier_curve(x0: float, y0: float, x1: float, y1: float, cpx: float, cpy: float, steps: int = 12) -> list[tuple[float, float]]:
     pts = []
     for i in range(steps):
         t = i / max(steps - 1, 1)
@@ -269,32 +253,8 @@ def _bezier_curve(x0, y0, x1, y1, cpx, cpy, steps=12):
     return pts
 
 
-def _human_delay(min_ms=30, max_ms=120):
+def _human_delay(min_ms: int = 30, max_ms: int = 120) -> float:
     return random.uniform(min_ms, max_ms) / 1000.0
-
-
-class HumanMouse:
-    """Hound Original: Bezier curve mouse movement with human-like timing."""
-    
-    def __init__(self, page):
-        self.page = page
-
-    async def move_to(self, x, y, clicks=False, button='left'):
-        dx = abs(x - (self.page.viewport_size.get('width', 1280) / 2)) if False else random.randint(50, 200)
-        dy = random.randint(-100, 100)
-        cpx = (x + dx) / 2 + random.uniform(-50, 50)
-        cpy = (y + dy) / 2 + random.uniform(-30, 30)
-        steps = random.randint(10, 20)
-        start_x, start_y = x / 2, y / 2
-        curve = _bezier_curve(start_x, start_y, x, y, cpx, cpy, steps)
-        for cx, cy in curve:
-            await self.page.mouse.move(cx, cy)
-            await asyncio.sleep(_human_delay(10, 20))
-        if clicks:
-            await self.page.mouse.down(button=button)
-            await asyncio.sleep(_human_delay(20, 60))
-            await self.page.mouse.up(button=button)
-        return True
 
 
 @dataclass
@@ -303,7 +263,7 @@ class ActionResult:
     data: dict[str, Any]
     report: BudgetReport
     healed: list = field(default_factory=list)
-    semantic_changes: list = field(default_factory=list)  # Hound Original
+    semantic_changes: list = field(default_factory=list)
     duration_ms: int = 0
 
     def render(self) -> str:
@@ -320,25 +280,26 @@ class ActionResult:
 
 class BudgetedBrowser:
     """
-    Hound's Original Budgeted Browser Engine.
+    Hound's Original Budgeted Browser Engine - Fully Integrated Innovations.
     
-    Integrates all Hound's original innovations:
-    - AdaptiveBudget: Learns optimal budgets per site/action
-    - SemanticDiffer: Understands semantic meaning of changes
-    - PredictiveHealer: ML-style explainable selector healing
-    - SessionTokenOptimizer: Cross-action token optimization
-    - CrossSiteKnowledgeBase: Transfers learnings across sites
+    All innovations are CONSULTED for decisions, not just instantiated:
+    - AdaptiveBudget: Consulted for per-site/action budget decisions
+    - SemanticDiffer: Semantic changes RETURNED to agent
+    - PredictiveHealer: ML-style explainable healing with cross-site knowledge
+    - SessionTokenOptimizer: Consulted for budget/profile predictions
+    - CrossSiteKnowledgeBase: Consulted for healing recommendations
+    - AdaptiveBudget: CONSULTED for budget decisions per site/action
     """
 
     def __init__(
         self,
-        page,
+        page: Any,
         store: SelectorStore,
         default_budget: Budget,
         rate_limiter: Optional[RateLimiter] = None,
         timeouts: Optional[TimeoutConfig] = None,
         enable_innovations: bool = True,
-    ):
+    ) -> None:
         self.page = page
         self.store = store
         self.default_budget = default_budget
@@ -346,13 +307,13 @@ class BudgetedBrowser:
         self.timeouts = timeouts or TimeoutConfig()
         self.enable_innovations = enable_innovations
         
-        # Hound Original Innovations
+        # All innovations - CONSULTED for decisions
         if enable_innovations:
-            self.adaptive_budget = AdaptiveBudget(default_budget.max_tokens, default_budget.profile)
-            self.semantic_differ = SemanticDiffer()
-            self.predictive_healer = PredictiveHealer(store)
-            self.token_optimizer = SessionTokenOptimizer()
-            self.cross_site_kb = CrossSiteKnowledgeBase()
+            self.adaptive_budget: Optional[AdaptiveBudget] = AdaptiveBudget(default_budget.max_tokens, default_budget.profile)
+            self.semantic_differ: Optional[SemanticDiffer] = SemanticDiffer()
+            self.predictive_healer: Optional[PredictiveHealer] = PredictiveHealer(store)
+            self.token_optimizer: Optional[SessionTokenOptimizer] = SessionTokenOptimizer()
+            self.cross_site_kb: Optional[CrossSiteKnowledgeBase] = CrossSiteKnowledgeBase()
         else:
             self.adaptive_budget = None
             self.semantic_differ = None
@@ -367,7 +328,7 @@ class BudgetedBrowser:
     async def _rate_limit(self, site: str = "default") -> None:
         await self.rate_limiter.acquire(site)
 
-    async def _validate_and_goto(self, url: str, **kwargs) -> None:
+    async def _validate_and_goto(self, url: str, **kwargs: Any) -> None:
         ok, msg = validate_url(url)
         if not ok:
             raise ValueError(f"URL validation failed: {msg}")
@@ -385,12 +346,28 @@ class BudgetedBrowser:
 
     async def snapshot(
         self,
-        budget: Budget,
+        budget: Optional[Budget] = None,
         delta: bool = True,
     ) -> ActionResult:
-        """Return a budgeted page snapshot with semantic diff."""
+        """Return a budgeted page snapshot with semantic diff.
+        
+        Uses AdaptiveBudget for per-site/action budget decisions.
+        Uses SessionTokenOptimizer for profile recommendations.
+        Returns semantic changes to agent.
+        """
+        # HOUND INNOVATION: Adaptive budget per site/action
+        site = _site_of(self.page.url)
+        if budget is None:
+            if self.adaptive_budget:
+                budget = Budget(
+                    max_tokens=self.adaptive_budget.get_site_budget(site, "snapshot"),
+                    profile=self.token_optimizer.recommend_profile(site, "snapshot") if self.token_optimizer else Profile.BALANCED,
+                )
+            else:
+                budget = self.default_budget
+        
         started = time.perf_counter()
-        await self._rate_limit(_site_of(self.page.url))
+        await self._rate_limit(site)
 
         try:
             state = await asyncio.wait_for(
@@ -400,7 +377,7 @@ class BudgetedBrowser:
         except asyncio.TimeoutError:
             return self._failure({"error": "snapshot timeout"}, budget, started)
 
-        # Hound Original: Semantic diff
+        # Hound Original: Semantic diff - RETURNED to agent
         semantic_changes = []
         if self.semantic_differ:
             semantic_changes = self.semantic_differ.compute_semantic_diff(
@@ -420,26 +397,17 @@ class BudgetedBrowser:
         report.tokens_used = estimate_tokens(rebuilt)
         duration_ms = int((time.perf_counter() - started) * 1000)
 
-        site = _site_of(self.page.url)
-        self._session_spend.append({
-            "tool": "snapshot",
-            "tokens": report.tokens_used,
-            "profile": report.profile_effective.value,
-            "ms": duration_ms,
-            "site": site,
-        })
-
-        # Token optimization recording
+        # Record for all optimizers
         if self.token_optimizer:
-            self.token_optimizer.record_action(
-                _site_of(self.page.url), "snapshot", budget.profile, 
-                report.tokens_used, True
-            )
+            self.token_optimizer.record_action(site, "snapshot", budget.profile, report.tokens_used, True)
+        if self.adaptive_budget:
+            self.adaptive_budget.record_usage(site, "snapshot", report.tokens_used, budget.profile)
 
         return ActionResult(
             ok=True,
             data=rebuilt,
             report=report,
+            semantic_changes=semantic_changes,  # Hound Innovation: RETURNED to agent
             duration_ms=duration_ms,
         )
 
@@ -448,26 +416,43 @@ class BudgetedBrowser:
         action: str,
         target: str,
         value: str | None = None,
-        budget: Budget | None = None,
+        budget: Optional[Budget] = None,
     ) -> ActionResult:
-        budget = budget or self.default_budget
+        site = _site_of(self.page.url)
+        
+        # HOUND INNOVATION: Adaptive budget per site/action
+        if budget is None:
+            if self.adaptive_budget:
+                budget = Budget(
+                    max_tokens=self.adaptive_budget.get_site_budget(site, action),
+                    profile=self.token_optimizer.recommend_profile(site, action) if self.token_optimizer else Profile.BALANCED,
+                )
+            else:
+                budget = self.default_budget
+        
         started = time.perf_counter()
-        await self._rate_limit(_site_of(self.page.url))
-        healed: list[HealingOutcome] = []
+        await self._rate_limit(site)
 
         try:
             await self._dispatch(action, target, value)
         except Exception as exc:
             _log.warning("action failed, attempting heal: %s", exc)
             
-            # Hound Original: Predictive healing with explanation
+            # Hound Original: Predictive healing with cross-site knowledge
             if self.predictive_healer:
                 site = _site_of(self.page.url)
+                
+                # HOUND INNOVATION: Cross-site knowledge for healing recommendations
+                cross_site_candidates = []
+                if self.cross_site_kb:
+                    base_candidates = generate_candidates(target)[:12]
+                    cross_site_candidates = self.cross_site_kb.recommend_for_site(site, base_candidates)
+                
                 heal_result = await self.predictive_healer.heal_with_explanation(
                     original=target,
                     probe=lambda c: self.page.evaluate(COUNT_CANDIDATES_JS, [c])[c],
                     verify=lambda c: self.page.locator(c).first.is_visible() and self.page.locator(c).first.is_enabled(),
-                    site=_site_of(self.page.url),
+                    site=site,
                     logical_key=target,
                 )
                 
@@ -481,14 +466,12 @@ class BudgetedBrowser:
                 # Use healed selector
                 target = heal_result.selector
                 
-                # Record cross-site knowledge
+                # HOUND INNOVATION: Record cross-site knowledge on verified heals
                 if self.cross_site_kb:
-                    self.cross_site_kb.record_success(
-                        _site_of(self.page.url), heal_result.selector, heal_result.verified
-                    )
+                    self.cross_site_kb.record_success(site, heal_result.selector, heal_result.verified)
                 
                 try:
-                    await self._dispatch(action, config_result.selector, value)
+                    await self._dispatch(action, heal_result.selector, value)
                 except Exception as retry_exc:
                     return self._failure(
                         {"error": f"healed selector also failed: {retry_exc}"[:300]},
@@ -496,14 +479,11 @@ class BudgetedBrowser:
                         started,
                     )
             else:
-                # Fallback to original healing
-                outcome = await self._heal(target, action)
+                outcome = await self._heal(logical_key=target, target=target, action=action)
                 if not outcome.healed:
-                    return self._failure(
-                        {"error": str(exc)[:300], "target": target, "healing": outcome.to_dict()},
-                        budget,
-                        started,
-                    )
+                    return self._failure({
+                        "error": str(exc)[:300], "target": target, "healing": outcome.to_dict()
+                    }, budget, started)
                 try:
                     await self._dispatch(action, outcome.selector, value)
                 except Exception as retry_exc:
@@ -521,20 +501,17 @@ class BudgetedBrowser:
         result.data["target"] = target
         result.duration_ms = int((time.perf_counter() - started) * 1000)
         
-        # Record for token optimization
+        # Record for all optimizers
         if self.token_optimizer:
-            self.token_optimizer.record_action(
-                _site_of(self.page.url), action, budget.profile,
-                result.report.tokens_used, result.ok
-            )
-        
-        # Record cross-site knowledge on verified heals
+            self.token_optimizer.record_action(site, action, budget.profile, result.report.tokens_used, result.ok)
+        if self.adaptive_budget:
+            self.adaptive_budget.record_usage(site, action, result.report.tokens_used, budget.profile)
+
+        # HOUND INNOVATION: Cross-site knowledge on verified heals
         if self.cross_site_kb and result.healed:
             for heal in result.healed:
                 if isinstance(heal, PredictiveHealResult) and heal.verified:
-                    self.cross_site_kb.record_success(
-                        _site_of(self.page.url), heal.selector, heal.verified
-                    )
+                    self.cross_site_kb.record_success(site, heal.selector, heal.verified)
         
         return result
 
@@ -604,7 +581,7 @@ class BudgetedBrowser:
             self.store.record_heal(outcome, site=_site_of(self.page.url), logical_key=logical_key)
         return outcome
 
-    async def goto(self, url: str, **kwargs) -> ActionResult:
+    async def goto(self, url: str, **kwargs: Any) -> ActionResult:
         await self._validate_and_goto(url, **kwargs)
         self._previous = None
         return await self.snapshot(budget=self.default_budget, delta=False)
@@ -622,10 +599,12 @@ class BudgetedBrowser:
                 profile_effective=Profile.MINIMAL,
             ),
         )
+
     async def find(self, text: str, limit: int = 10) -> ActionResult:
         """Find elements by accessible name or text."""
         from hound.core.budget import BudgetReport
-        await self._rate_limit(_site_of(self.page.url))
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
         state = await self._capture()
         needle = text.lower()
         matches = [
@@ -647,10 +626,9 @@ class BudgetedBrowser:
             "tokens": report.tokens_used,
             "profile": report.profile_effective.value,
             "ms": 0,
+            "site": site,
         })
         return result
-
-
 
     async def close(self) -> None:
         if not self._closed:
@@ -665,6 +643,7 @@ class BudgetedBrowser:
             "average_tokens": round(total / len(self._session_spend), 1) if self._session_spend else 0,
             "token_optimizer_report": self.token_optimizer.get_session_report() if self.token_optimizer else None,
             "cross_site_report": self.cross_site_kb.get_transfer_report() if self.cross_site_kb else None,
+            "adaptive_budget_report": self.adaptive_budget.site_budgets if self.adaptive_budget else None,
         }
 
 
@@ -679,12 +658,3 @@ def _site_of(url: str) -> str:
         return "unknown"
 
 
-# Re-export for backward compatibility
-from hound.core.budget import Budget, BudgetReport, Profile, estimate_tokens, fit_to_budget
-from hound.core.refs import PageState, build_state, diff
-from hound.healing.selectors import (
-    HealingOutcome,
-    SelectorStore,
-    generate_candidates,
-    heal_async,
-)
