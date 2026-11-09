@@ -39,6 +39,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+server = ["uvicorn>=0.31.1","starlette>=0.48.0"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -49,6 +50,7 @@ dev = [
 
 [project.scripts]
 hound-mcp = "hound.mcp.server:main"
+hound-mcp-http = "hound.mcp.http:main"
 hound-bench = "bench.run:cli"
 
 [project.urls]

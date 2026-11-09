@@ -1,7 +1,7 @@
 ---
 name: hound-browser-automation
 description: Token-budgeted, self-healing browser automation via the Hound MCP server. Use when you need to browse, click, fill forms, or extract data with minimal context cost using budgeted/delta snapshots and automatic selector healing.
-version: 1.0.0
+version: 1.0.1
 ---
 
 # Hound Browser Automation
@@ -15,36 +15,36 @@ version: 1.0.0
 Hound is **not currently on PyPI**. Install from source.
 
 ## Workflow: open -> act -> snapshot(delta) -> extract -> heal
-1. **Open**: `browser_open` with URL. Get budgeted snapshot.
-2. **Act**: Use `browser_act` with refs from snapshot or selectors.
+1. **Open**: `browser_open` with `url`. Get budgeted snapshot.
+2. **Act**: Use `browser_act` with `action` + `target` (ref like `e3` or CSS selector). Pass `value` for fill/press/select.
 3. **Snapshot**: After actions/navigation, use `browser_snapshot` (delta) to get only changes.
-4. **Extract**: Use `browser_extract` with a target/schema for structured data.
-5. **Heal**: If a selector fails, use `browser_heal` with selector and logical_key; Hound will verify and remember repairs.
+4. **Find**: Use `browser_find` with `text` (and optional `role`) to locate elements without a full snapshot.
+5. **Extract**: Use `browser_extract` with `root` and `fields` map for structured data.
+6. **Heal**: If a selector fails, use `browser_heal` with `selector` and `logical_key`; Hound verifies and remembers repairs.
 
 ## Tools (all 7)
-| Tool | Purpose | Key params |
+| Tool | Required | Key options |
 |---|---|---|
-| `browser_open` | Navigate and get budgeted snapshot | `url` |
-| `browser_snapshot` | Re-read page, return only changes if possible | (uses session) |
-| `browser_act` | Click/fill/press/select | `action`, `selector` or ref, `value` (for fill) |
-| `browser_find` | Locate elements without full snapshot | `query`/criteria |
-| `browser_extract` | Structured extraction with confidence/verified | `target`, schema hints |
-| `browser_heal` | Repair broken selector, verify, remember | `selector`, `logical_key` |
-| `browser_budget_report` | Session token spend by tool | - |
+| `browser_open` | `url` | `wait_until`, `max_tokens`, `profile` |
+| `browser_snapshot` | - | `full_snapshot`, `max_tokens`, `profile` |
+| `browser_act` | `action`, `target` | `value` (fill/press/select) |
+| `browser_find` | `text` | `role`, `limit` |
+| `browser_extract` | `root`, `fields` | `max_tokens` |
+| `browser_heal` | `selector`, `logical_key` | - |
+| `browser_budget_report` | - | - |
 
 ## Environment variables
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `HOUND_DB` | OS default (see repo) | Learned selectors DB |
+| `HOUND_DB` | OS default | Learned selectors DB |
 | `HOUND_DEFAULT_BUDGET` | `1200` | Token budget |
-| `HOUND_MAX_BUDGET` | (engine) | Max budget |
 | `HOUND_HEADLESS` | `1` | Headless mode |
 
 ## Not the web-research Hound
-**PyPI package `hound-mcp` is a different project** (web research, command `hound`). This is **`hound-browser-mcp`** with command **`hound-mcp`** (same command name exists for different project - check which is installed). Repo: https://github.com/sumitrao9/hound
+**PyPI package `hound-mcp` is a different project** (web research, command `hound`). This is **`hound-browser-mcp`** (repo: https://github.com/sumitrao9/hound). If installed from source, run `hound-mcp` or `python -m hound.mcp.server`.
 
 ## Safety
-You must only automate sites you are allowed to automate.
+Only automate sites you are authorized to automate.
 
 ## Setup
-See [references/quickstart.md](references/quickstart.md) and [templates/mcp-config.json](templates/mcp-config.json).
+See [references/quickstart.md](references/quickstart.md), [references/tools.md](references/tools.md), and [templates/mcp-config.json](templates/mcp-config.json).

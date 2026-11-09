@@ -1,18 +1,14 @@
-# Tools (verified against code)
+# Tools (verified against hound/mcp/server.py)
 
-All 7 tools registered in `hound/mcp/server.py`:
+| Tool | Required params | Optional params | Notes |
+|---|---|---|---|
+| `browser_open` | `url` | `wait_until`, `max_tokens`, `profile` | Navigates and returns budgeted snapshot |
+| `browser_snapshot` | - | `full_snapshot`, `max_tokens`, `profile` | Delta by default (only changes) |
+| `browser_act` | `action`, `target` | `value`, `max_tokens`, `profile` | `action`: click/fill/press/select. `target` = ref (e.g. e3) or CSS selector. `value` for fill/press/select. |
+| `browser_find` | `text` | `role`, `limit` | Find by accessible name substring; avoids full snapshot |
+| `browser_extract` | `root`, `fields` | `max_tokens` | `fields` = {output_name: css_selector} per container |
+| `browser_heal` | `selector`, `logical_key` | - | Repairs selector, verifies, remembers per site |
+| `browser_budget_report` | - | - | Session token spend by tool |
 
-| Tool | Description | Params |
-|---|---|---|
-| `browser_open` | Navigate and get a budgeted snapshot | `url` (string) |
-| `browser_snapshot` | Re-read page; returns delta when possible | - |
-| `browser_act` | Click/fill/press/select by ref or selector | `action`, `selector` or `ref`, `value` (for fill) |
-| `browser_find` | Locate elements by name/role without full snapshot | query/criteria |
-| `browser_extract` | Structured extraction with confidence and verified flag | target/schema |
-| `browser_heal` | Repair broken selector, verify, remember per site | `selector`, `logical_key` |
-| `browser_budget_report` | Session token spend by tool | - |
-
-Notes:
-- First snapshot has no baseline for delta
-- Budgeting may truncate; check budget report
-- Healed selectors are remembered in the selector store
+- First snapshot has no baseline for delta.
+- Budgeting may truncate; check `browser_budget_report`.

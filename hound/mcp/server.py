@@ -17,7 +17,7 @@ from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import TextContent, Tool
+from mcp.types import CallToolResult, ListToolsResult, TextContent, Tool
 
 from hound.core.budget import Budget, Profile, estimate_tokens
 from hound.core.engine import BudgetedBrowser
@@ -380,17 +380,15 @@ class HoundServer:
 
 def build_server() -> Server:
     session = HoundServer(headless=os.environ.get("HOUND_HEADLESS", "1") != "0")
-    server = Server(SERVER_NAME)
 
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
-        return TOOLS
+    async def on_list_tools(_ctx, _params):
+        return ListToolsResult(tools=TOOLS)
 
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        result = await session.dispatch(name, arguments or {})
-        return [TextContent(type="text", text=result.render())]
+    async def on_call_tool(_ctx, params):
+        result = await session.dispatch(params.name, params.arguments or {})
+        return CallToolResult(content=[TextContent(type="text", text=result.render())])
 
+    server = Server(SERVER_NAME, on_list_tools=on_list_tools, on_call_tool=on_call_tool)
     server.hound_session = session  # type: ignore[attr-defined]
     return server
 

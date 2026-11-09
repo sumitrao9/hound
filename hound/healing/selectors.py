@@ -107,7 +107,8 @@ class SelectorStore:
 
     def __init__(self, path: str | Path = ":memory:"):
         self.path = str(path)
-        self._conn = sqlite3.connect(self.path)
+        self._lock = __import__("threading").Lock()
+        self._conn = sqlite3.connect(self.path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._init_schema()
 
