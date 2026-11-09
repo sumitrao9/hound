@@ -1,0 +1,36 @@
+name: Hosted Hound Waitlist / Pro Support
+description: Request access to hosted 24/7 Hound MCP, usage-based plans, or Pro support/integration help.
+title: "[Hosted/Pro]: <your use case>"
+labels: ["hosted", "waitlist"]
+body:
+  - type: markdown
+    attributes:
+      value: "Authorized use only. Share what you’re building and your expected volume so we can size access/pricing."
+  - type: input
+    id: usecase
+    attributes:
+      label: Use case
+      description: What will you automate? (authorized sites/workflows only)
+    validations:
+      required: true
+  - type: dropdown
+    id: plan
+    attributes:
+      label: Interest
+      options:
+        - Hosted MCP (managed endpoint)
+        - Pro support / integration
+        - Both
+        - Self-host help
+    validations:
+      required: true
+  - type: input
+    id: volume
+    attributes:
+      label: Expected volume
+      description: "e.g., requests/day, sites, team size"
+  - type: input
+    id: region
+    attributes:
+      label: Billing region
+      description: "INR (India) or global (USD)"

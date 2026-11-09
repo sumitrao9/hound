@@ -73,7 +73,7 @@ docker run -p 8000:8000 -e HOUND_API_KEY=secret hound-mcp hound-mcp-http
 | `HOUND_STATELESS` | `0` | Stateless sessions |
 
 ## Monetization / Support (use Hound)
-- **Hosted 24/7 MCP endpoint** (managed, API key, usage limits) — contact/open an issue to request access.
+- **Hosted 24/7 MCP endpoint** (managed, API key, usage limits) — [request access / waitlist](https://github.com/sumitrao9/hound/issues/new?template=hosted-waitlist.yml) (INR ₹799–₹3,999/mo or $9–$49/mo + usage, *estimate/validate*; pay via Razorpay/Stripe/checkout link on approval).
 - **Pro/support**: integration help, custom tools, authorized automation workflows.
 - **Agensi skill**: installable skill package for local MCP setup.
 - **GitHub Sponsors** / inquiries: https://github.com/sumitrao9/hound/issues
