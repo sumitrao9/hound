@@ -98,7 +98,7 @@ TOOLS = [
             "type": "object",
             "properties": dict([
                 prop("action", "string", "Action to perform.",
-                     enum=["click", "fill", "press", "select"]),
+                     enum=["click", "fill", "press", "select", "hover"]),
                 prop("target", "string", "Element ref (e3) or CSS selector."),
                 prop("value", "string", "Text for fill, key for press, option for select."),
                 budget_prop(),
@@ -166,6 +166,100 @@ TOOLS = [
             "flow is running expensive before adding more steps."
         ),
         inputSchema={"type": "object", "properties": {}},
+    ),
+    Tool(
+        name="browser_screenshot",
+        description=(
+            "Capture a JPEG screenshot of the page or a specific element. Returns base64 "
+            "image data when within the token budget, otherwise returns size metadata so "
+            "you can increase max_tokens. Use for visual verification or debugging."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                prop("selector", "string", "Optional CSS selector to capture a specific element."),
+                prop("full_page", "boolean", "Capture the full scrollable page.", default=False),
+                prop("quality", "integer", "JPEG quality 20-95.", default=60, minimum=20, maximum=95),
+                budget_prop(),
+            ]),
+        },
+    ),
+    Tool(
+        name="browser_eval",
+        description=(
+            "Evaluate JavaScript in the page context and return the result (budgeted). "
+            "Use for extracting data not reachable via selectors, reading page state, "
+            "or triggering app-specific behavior. The script runs as a function body; "
+            "return a value to capture it."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                prop("script", "string", "JavaScript expression or function body to evaluate, e.g. '() => document.title'."),
+                prop("arg", "object", "Optional argument passed to the script function."),
+                budget_prop(),
+            ]),
+            "required": ["script"],
+        },
+    ),
+    Tool(
+        name="browser_wait",
+        description=(
+            "Wait for a selector, visible text, or a short delay. Use after actions that "
+            "trigger async UI updates before taking a snapshot."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                prop("selector", "string", "CSS selector to wait for."),
+                prop("text", "string", "Visible text to wait for."),
+                prop("state", "string", "Wait state for selector/text.",
+                     enum=["attached", "detached", "visible", "hidden"], default="visible"),
+                prop("timeout_ms", "integer", "Timeout in milliseconds.", default=10000, minimum=100, maximum=60000),
+                budget_prop(),
+            ]),
+        },
+    ),
+    Tool(
+        name="browser_content",
+        description=(
+            "Return cleaned, budgeted text content from the page or a specific element. "
+            "Cheaper than a full snapshot when you only need readable text."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                prop("selector", "string", "Optional CSS selector to scope extraction."),
+                prop("clean", "boolean", "Collapse excess whitespace.", default=True),
+                budget_prop(),
+            ]),
+        },
+    ),
+    Tool(
+        name="browser_scroll",
+        description="Scroll the page or a specific element up or down.",
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                prop("direction", "string", "Scroll direction.", enum=["up", "down"], default="down"),
+                prop("amount", "integer", "Pixels to scroll.", default=600, minimum=50, maximum=5000),
+                prop("selector", "string", "Optional scrollable element selector."),
+                budget_prop(),
+            ]),
+        },
+    ),
+    Tool(
+        name="browser_pdf",
+        description=(
+            "Generate a PDF of the current page. Returns base64 PDF data when within the "
+            "token budget, otherwise returns size metadata. Chromium only."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": dict([
+                budget_prop(),
+            ]),
+        },
     ),
 ]
 
@@ -362,6 +456,72 @@ class HoundServer:
         )
         return ActionResult(ok=True, data=payload, report=report)
 
+    async def tool_screenshot(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget({**args, "profile": args.get("profile", Profile.MINIMAL.value)})
+        result = await self.engine.screenshot(
+            budget=budget,
+            full_page=bool(args.get("full_page", False)),
+            selector=args.get("selector"),
+            quality=int(args.get("quality", 60)),
+        )
+        self._record("browser_screenshot", result)
+        return result
+
+    async def tool_eval(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget(args)
+        result = await self.engine.evaluate(
+            script=args["script"],
+            arg=args.get("arg"),
+            budget=budget,
+        )
+        self._record("browser_eval", result)
+        return result
+
+    async def tool_wait(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget({**args, "profile": args.get("profile", Profile.MINIMAL.value)})
+        result = await self.engine.wait_for(
+            selector=args.get("selector"),
+            text=args.get("text"),
+            state=args.get("state", "visible"),
+            timeout_ms=int(args.get("timeout_ms", 10000)),
+            budget=budget,
+        )
+        self._record("browser_wait", result)
+        return result
+
+    async def tool_content(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget(args)
+        result = await self.engine.content(
+            budget=budget,
+            selector=args.get("selector"),
+            clean=bool(args.get("clean", True)),
+        )
+        self._record("browser_content", result)
+        return result
+
+    async def tool_scroll(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget({**args, "profile": args.get("profile", Profile.MINIMAL.value)})
+        result = await self.engine.scroll(
+            direction=args.get("direction", "down"),
+            amount=int(args.get("amount", 600)),
+            selector=args.get("selector"),
+            budget=budget,
+        )
+        self._record("browser_scroll", result)
+        return result
+
+    async def tool_pdf(self, args: dict) -> Any:
+        assert self.engine is not None
+        budget = self._budget({**args, "profile": args.get("profile", Profile.MINIMAL.value)})
+        result = await self.engine.pdf(budget=budget)
+        self._record("browser_pdf", result)
+        return result
+
     async def dispatch(self, name: str, args: dict) -> Any:
         table = {
             "browser_open": self.tool_open,
@@ -371,6 +531,12 @@ class HoundServer:
             "browser_extract": self.tool_extract,
             "browser_heal": self.tool_heal,
             "browser_budget_report": self.tool_report,
+            "browser_screenshot": self.tool_screenshot,
+            "browser_eval": self.tool_eval,
+            "browser_wait": self.tool_wait,
+            "browser_content": self.tool_content,
+            "browser_scroll": self.tool_scroll,
+            "browser_pdf": self.tool_pdf,
         }
         handler = table.get(name)
         if handler is None:

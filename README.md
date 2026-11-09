@@ -10,6 +10,25 @@
 ## What it is
 Hound gives AI agents browser control with **budgeted responses** and **delta snapshots** (returns only what changed). It also **heals selectors** and remembers verified repairs per site.
 
+## Superpowers (13 tools)
+| Tool | Purpose |
+| --- | --- |
+| `browser_open` | Navigate and get a budgeted snapshot (`url`) |
+| `browser_snapshot` | Re-read page; delta by default (`full_snapshot`) |
+| `browser_act` | `action` + `target` (ref like `e3` or CSS), optional `value` — supports `click/fill/press/select/hover` |
+| `browser_find` | Find by accessible `text` (optional `role`,`limit`) |
+| `browser_extract` | Extract with `root` + `fields` map; confidence/verified |
+| `browser_heal` | Repair `selector` for `logical_key`; verify & remember |
+| `browser_content` | Budgeted, cleaned text extraction (page or selector) |
+| `browser_eval` | Run JS in page context, return budgeted result |
+| `browser_wait` | Wait for selector/text/state before next action |
+| `browser_scroll` | Scroll page or element (up/down) |
+| `browser_screenshot` | JPEG screenshot (base64 when within budget, else size metadata) |
+| `browser_pdf` | PDF export (base64 when within budget) — Chromium |
+| `browser_budget_report` | Session token spend + optimizer/selector stats |
+
+All tools accept `max_tokens` and enforce budgeted responses (profile degradation + truncation reporting). Screenshots/PDFs are **budget-aware**: if the payload would blow the token budget, Hound returns size metadata instead of dumping base64.
+
 ## Measured results
 Benchmark (`bench/run_fixed2.py`, see `bench/results/latest.json`): baseline = full ARIA snapshot + body text per step; Hound = budgeted/delta.
 

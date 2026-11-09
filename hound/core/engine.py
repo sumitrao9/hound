@@ -264,6 +264,10 @@ class ActionResult:
     semantic_changes: list = field(default_factory=list)
     duration_ms: int = 0
 
+    @property
+    def tokens(self) -> int:
+        return self.report.tokens_used if self.report else 0
+
     def render(self) -> str:
         parts = [f"ok={self.ok}"]
         if self.healed:
@@ -543,6 +547,8 @@ class BudgetedBrowser:
         )
         if action == "click":
             await asyncio.wait_for(locator.click(timeout=8000), timeout=self.timeouts.element_action)
+        elif action == "hover":
+            await asyncio.wait_for(locator.hover(timeout=8000), timeout=self.timeouts.element_action)
         elif action in {"fill", "type"}:
             await asyncio.wait_for(locator.fill(value or "", timeout=8000), timeout=self.timeouts.element_action)
         elif action == "press":
@@ -635,6 +641,242 @@ class BudgetedBrowser:
             "site": site,
         })
         return result
+
+    async def screenshot(
+        self,
+        budget: Budget | None = None,
+        full_page: bool = False,
+        selector: str | None = None,
+        quality: int = 60,
+        max_width: int = 1280,
+    ) -> ActionResult:
+        """Capture a screenshot. Returns base64 PNG/JPEG metadata budgeted by size."""
+        import base64
+        from hound.core.budget import BudgetReport
+
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            opts: dict[str, Any] = {"type": "jpeg", "quality": max(20, min(quality, 95))}
+            if selector:
+                loc = self.page.locator(selector).first
+                if not await loc.count():
+                    return self._failure({"error": f"selector not found: {selector}"}, budget, started)
+                raw = await asyncio.wait_for(loc.screenshot(**opts), timeout=self.timeouts.snapshot)
+            else:
+                opts["full_page"] = full_page
+                raw = await asyncio.wait_for(self.page.screenshot(**opts), timeout=self.timeouts.snapshot)
+
+            b64 = base64.b64encode(raw).decode("ascii")
+            # Budget by approximate token cost of the base64 string (chars/4) and report bytes
+            token_cost = estimate_tokens(b64[: min(len(b64), budget.max_tokens * 4)])
+            if token_cost > budget.max_tokens:
+                # Downsample signal: return metadata only, not the image
+                payload = {
+                    "screenshot": None,
+                    "bytes": len(raw),
+                    "base64_chars": len(b64),
+                    "format": "jpeg",
+                    "full_page": full_page,
+                    "note": f"image omitted: ~{estimate_tokens(b64)} tokens exceeds budget {budget.max_tokens}. Use browser_eval or increase max_tokens.",
+                }
+                report = BudgetReport(
+                    tokens_used=estimate_tokens(payload),
+                    max_tokens=budget.max_tokens,
+                    profile_requested=Profile.MINIMAL,
+                    profile_effective=Profile.MINIMAL,
+                    truncated_text=True,
+                    notes=[f"screenshot bytes={len(raw)} exceeded token budget"],
+                )
+            else:
+                payload = {
+                    "screenshot": b64,
+                    "bytes": len(raw),
+                    "base64_chars": len(b64),
+                    "format": "jpeg",
+                    "full_page": full_page,
+                    "selector": selector,
+                }
+                report = BudgetReport(
+                    tokens_used=estimate_tokens(payload),
+                    max_tokens=budget.max_tokens,
+                    profile_requested=budget.profile,
+                    profile_effective=budget.profile,
+                )
+            result = ActionResult(ok=True, data=payload, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "screenshot", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"screenshot failed: {exc}"[:300]}, budget, started)
+
+    async def evaluate(self, script: str, arg: Any = None, budget: Budget | None = None) -> ActionResult:
+        """Evaluate JavaScript in the page and return a budgeted result."""
+        from hound.core.budget import BudgetReport
+
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            if arg is None:
+                raw = await asyncio.wait_for(self.page.evaluate(script), timeout=self.timeouts.element_action)
+            else:
+                raw = await asyncio.wait_for(self.page.evaluate(script, arg), timeout=self.timeouts.element_action)
+            payload = {"result": raw}
+            rebuilt, report = fit_to_budget(payload, budget)
+            result = ActionResult(ok=True, data=rebuilt, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "eval", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"eval failed: {exc}"[:300]}, budget, started)
+
+    async def wait_for(
+        self,
+        selector: str | None = None,
+        text: str | None = None,
+        state: str = "visible",
+        timeout_ms: int = 10000,
+        budget: Budget | None = None,
+    ) -> ActionResult:
+        """Wait for a selector, text, or state."""
+        from hound.core.budget import BudgetReport
+
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            if selector:
+                await asyncio.wait_for(
+                    self.page.locator(selector).first.wait_for(state=state, timeout=timeout_ms),
+                    timeout=max(timeout_ms / 1000 + 2, self.timeouts.selector_wait),
+                )
+                payload = {"waited_for": "selector", "selector": selector, "state": state, "ok": True}
+            elif text:
+                await asyncio.wait_for(
+                    self.page.get_by_text(text).first.wait_for(state=state, timeout=timeout_ms),
+                    timeout=max(timeout_ms / 1000 + 2, self.timeouts.selector_wait),
+                )
+                payload = {"waited_for": "text", "text": text, "state": state, "ok": True}
+            else:
+                await self.page.wait_for_timeout(min(timeout_ms, 30000))
+                payload = {"waited_for": "timeout", "ms": min(timeout_ms, 30000), "ok": True}
+            report = BudgetReport(
+                tokens_used=estimate_tokens(payload),
+                max_tokens=budget.max_tokens,
+                profile_requested=Profile.MINIMAL,
+                profile_effective=Profile.MINIMAL,
+            )
+            result = ActionResult(ok=True, data=payload, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "wait", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"wait failed: {exc}"[:300], "selector": selector, "text": text}, budget, started)
+
+    async def content(self, budget: Budget | None = None, selector: str | None = None, clean: bool = True) -> ActionResult:
+        """Return budgeted page text content (cleaned)."""
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            if selector:
+                raw = await asyncio.wait_for(
+                    self.page.locator(selector).first.inner_text(),
+                    timeout=self.timeouts.snapshot,
+                )
+            else:
+                raw = await asyncio.wait_for(
+                    self.page.evaluate("() => document.body?.innerText || ''"),
+                    timeout=self.timeouts.snapshot,
+                )
+            if clean:
+                import re
+                raw = re.sub(r"\n{3,}", "\n\n", raw).strip()
+            payload = {"url": self.page.url, "title": await self.page.title(), "text": raw, "chars": len(raw)}
+            rebuilt, report = fit_to_budget(payload, budget)
+            result = ActionResult(ok=True, data=rebuilt, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "content", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"content failed: {exc}"[:300]}, budget, started)
+
+    async def scroll(self, direction: str = "down", amount: int = 600, selector: str | None = None, budget: Budget | None = None) -> ActionResult:
+        """Scroll the page or an element."""
+        from hound.core.budget import BudgetReport
+
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            delta = amount if direction == "down" else -amount
+            if selector:
+                await self.page.locator(selector).first.evaluate(f"(el) => el.scrollBy(0, {delta})")
+            else:
+                await self.page.evaluate(f"() => window.scrollBy(0, {delta})")
+            payload = {"scrolled": direction, "amount": amount, "selector": selector}
+            report = BudgetReport(
+                tokens_used=estimate_tokens(payload),
+                max_tokens=budget.max_tokens,
+                profile_requested=Profile.MINIMAL,
+                profile_effective=Profile.MINIMAL,
+            )
+            result = ActionResult(ok=True, data=payload, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "scroll", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"scroll failed: {exc}"[:300]}, budget, started)
+
+    async def pdf(self, budget: Budget | None = None) -> ActionResult:
+        """Generate a PDF of the current page. Returns base64 metadata (budget-aware)."""
+        import base64
+        from hound.core.budget import BudgetReport
+
+        budget = budget or self.default_budget
+        started = time.perf_counter()
+        site = _site_of(self.page.url)
+        await self._rate_limit(site)
+
+        try:
+            raw = await asyncio.wait_for(self.page.pdf(format="A4", print_background=True), timeout=self.timeouts.snapshot * 2)
+            b64 = base64.b64encode(raw).decode("ascii")
+            token_cost = estimate_tokens(b64[: min(len(b64), budget.max_tokens * 4)])
+            if token_cost > budget.max_tokens:
+                payload = {
+                    "pdf": None,
+                    "bytes": len(raw),
+                    "base64_chars": len(b64),
+                    "note": f"PDF omitted: ~{estimate_tokens(b64)} tokens exceeds budget {budget.max_tokens}. Increase max_tokens to receive base64.",
+                }
+                report = BudgetReport(
+                    tokens_used=estimate_tokens(payload),
+                    max_tokens=budget.max_tokens,
+                    profile_requested=Profile.MINIMAL,
+                    profile_effective=Profile.MINIMAL,
+                    truncated_text=True,
+                    notes=[f"pdf bytes={len(raw)} exceeded token budget"],
+                )
+            else:
+                payload = {"pdf": b64, "bytes": len(raw), "base64_chars": len(b64), "format": "pdf"}
+                report = BudgetReport(
+                    tokens_used=estimate_tokens(payload),
+                    max_tokens=budget.max_tokens,
+                    profile_requested=budget.profile,
+                    profile_effective=budget.profile,
+                )
+            result = ActionResult(ok=True, data=payload, report=report, duration_ms=int((time.perf_counter() - started) * 1000))
+            self._session_spend.append({"tool": "pdf", "tokens": report.tokens_used, "profile": report.profile_effective.value, "ms": result.duration_ms, "site": site})
+            return result
+        except Exception as exc:
+            return self._failure({"error": f"pdf failed: {exc}"[:300]}, budget, started)
 
     async def close(self) -> None:
         if not self._closed:
