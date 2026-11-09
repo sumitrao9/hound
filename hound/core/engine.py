@@ -391,7 +391,16 @@ class BudgetedBrowser:
 
         self._previous = state
 
-        rebuilt, report = fit_to_budget(payload, budget)
+        def _rebuild(cheaper_profile: Profile) -> dict | None:
+            """Re-render the page state at a cheaper profile for degradation."""
+            if delta and self._previous is not None:
+                return None  # deltas are already minimal, can't degrade further
+            try:
+                return state.render(cheaper_profile)
+            except Exception:
+                return None
+
+        rebuilt, report = fit_to_budget(payload, budget, rebuild=_rebuild)
         report.tokens_used = estimate_tokens(rebuilt)
         duration_ms = int((time.perf_counter() - started) * 1000)
 
