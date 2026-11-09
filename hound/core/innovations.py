@@ -6,24 +6,18 @@ These are NOT copies - they're Hound's own solutions to problems
 identified through research, implemented in Hound's unique way.
 """
 
-import asyncio
-import hashlib
 import logging
-import random
 import re
-import time
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from typing import Any
 
-from hound.core.budget import Budget, BudgetReport, Profile, estimate_tokens, fit_to_budget
-from hound.core.refs import PageState, build_state, diff
+from hound.core.budget import Budget, Profile
+from hound.core.refs import PageState
 from hound.healing.selectors import (
-    HealingOutcome,
     SelectorStore,
     generate_candidates,
-    heal_async,
 )
 
 _log = logging.getLogger(__name__)
@@ -42,8 +36,8 @@ class AdaptiveBudget(Budget):
     - Typical token usage per action type
     - Adjusts default budget per site over time
     """
-    site_budgets: Dict[str, int] = field(default_factory=dict)
-    action_history: Dict[str, List[int]] = field(default_factory=lambda: defaultdict(list))
+    site_budgets: dict[str, int] = field(default_factory=dict)
+    action_history: dict[str, list[int]] = field(default_factory=lambda: defaultdict(list))
     learning_rate: float = 0.1
     
     def get_site_budget(self, site: str, action_type: str) -> int:
@@ -80,9 +74,9 @@ class SemanticChange:
     """Hound Original: Change with semantic meaning, not just structural."""
     type: str
     significance: float
-    elements_affected: List[str]
+    elements_affected: list[str]
     description: str
-    agent_action_hint: Optional[str] = None
+    agent_action_hint: str | None = None
 
 class SemanticDiffer:
     """
@@ -94,10 +88,10 @@ class SemanticDiffer:
     CONTENT_ROLES = {'heading', 'paragraph', 'listitem', 'cell', 'row', 'img', 'alert', 'status'}
     
     def __init__(self) -> None:
-        self._previous_state: Optional[PageState] = None
+        self._previous_state: PageState | None = None
         self._change_history: deque = deque(maxlen=50)
     
-    def compute_semantic_diff(self, previous: Optional[PageState], current: PageState) -> List[SemanticChange]:
+    def compute_semantic_diff(self, previous: PageState | None, current: PageState) -> list[SemanticChange]:
         if previous is None:
             return [SemanticChange(
                 type='navigation',
@@ -116,7 +110,7 @@ class SemanticDiffer:
                 agent_action_hint="reorient"
             )]
         
-        changes: List[SemanticChange] = []
+        changes: list[SemanticChange] = []
         before = previous.index()
         after = current.index()
         
@@ -183,13 +177,13 @@ class PredictiveHealResult:
     healed: bool
     selector: str
     confidence: float
-    confidence_interval: Tuple[float, float]
+    confidence_interval: tuple[float, float]
     reasoning: str
-    feature_importance: Dict[str, float]
+    feature_importance: dict[str, float]
     verified: bool
-    alternatives: List[Tuple[str, float]]
+    alternatives: list[tuple[str, float]]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "healed": self.healed,
             "selector": self.selector,
@@ -206,7 +200,7 @@ class PredictiveHealer:
     Hound Original: Healing with explainable ML-style feature scoring.
     """
     
-    FEATURE_WEIGHTS: Dict[str, float] = {
+    FEATURE_WEIGHTS: dict[str, float] = {
         'has_id': 2.0, 'has_test_id': 1.8, 'has_aria_label': 1.5,
         'has_name': 1.3, 'has_role': 1.0, 'has_stable_class': 0.8,
         'has_volatile_class': -1.0, 'position_stable': 0.5,
@@ -215,21 +209,21 @@ class PredictiveHealer:
     
     def __init__(self, store: SelectorStore) -> None:
         self.store = store
-        self.site_history: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))
-        self.global_stats: Dict[str, float] = defaultdict(float)
+        self.site_history: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self.global_stats: dict[str, float] = defaultdict(float)
     
     async def heal_with_explanation(
         self,
         original: str,
         probe: Callable[[str], Any],
-        verify: Optional[Callable[[str], Any]] = None,
+        verify: Callable[[str], Any] | None = None,
         site: str = "",
         logical_key: str = "",
         expected_matches: int = 1,
         min_confidence: float = 0.55,
     ) -> "PredictiveHealResult":
         candidates = generate_candidates(original)[:12]
-        scored: List[Dict[str, Any]] = []
+        scored: list[dict[str, Any]] = []
         
         for candidate in candidates:
             try:
@@ -304,8 +298,8 @@ class PredictiveHealer:
             alternatives=[(s['selector'], s['score']) for s in scored[1:4]],
         )
     
-    def _extract_features(self, selector: str) -> Dict[str, float]:
-        features: Dict[str, float] = {}
+    def _extract_features(self, selector: str) -> dict[str, float]:
+        features: dict[str, float] = {}
         features['has_id'] = 1.0 if '#' in selector and not selector.startswith('#') else 0.0
         features['has_test_id'] = 1.0 if any(h in selector for h in ['data-testid', 'data-test', 'data-qa']) else 0.0
         features['has_aria_label'] = 1.0 if 'aria-label' in selector else 0.0
@@ -317,11 +311,11 @@ class PredictiveHealer:
         features['historical_success'] = 0.0
         return features
     
-    def _compute_score(self, features: Dict[str, float], site: str, selector: str) -> float:
+    def _compute_score(self, features: dict[str, float], site: str, selector: str) -> float:
         score = sum(features.get(f, 0.0) * w for f, w in self.FEATURE_WEIGHTS.items())
         return max(0.0, min(1.0, (score + 5) / 15))
     
-    def _top_features(self, features: Dict[str, float], top_n: int = 3) -> str:
+    def _top_features(self, features: dict[str, float], top_n: int = 3) -> str:
         sorted_feats = sorted(features.items(), key=lambda x: x[1], reverse=True)
         return ", ".join(f"{k}={v:.2f}" for k, v in sorted_feats[:top_n] if v > 0)
 
@@ -331,9 +325,9 @@ class PredictiveHealer:
 
 class SessionTokenOptimizer:
     def __init__(self) -> None:
-        self.site_action_costs: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))
-        self.profile_effectiveness: Dict[str, Dict[Profile, List[float]]] = defaultdict(lambda: defaultdict(list))
-        self.action_sequence: List[Tuple[str, Profile, int]] = []
+        self.site_action_costs: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
+        self.profile_effectiveness: dict[str, dict[Profile, list[float]]] = defaultdict(lambda: defaultdict(list))
+        self.action_sequence: list[tuple[str, Profile, int]] = []
     
     def record_action(self, site: str, action_type: str, profile: Profile, tokens_used: int, success: bool) -> None:
         if success:
@@ -344,7 +338,7 @@ class SessionTokenOptimizer:
     def predict_optimal_budget(self, site: str, action_type: str, default: int = 1200) -> int:
         costs = self.site_action_costs[site].get(action_type, [])
         if len(costs) >= 5:
-            sorted_costs = sorted(costs)
+            sorted(costs)
             p75 = costs[int(len(costs) * 0.75)]
             return min(20000, max(500, int(p75 * 1.15)))
         return default
@@ -362,12 +356,12 @@ class SessionTokenOptimizer:
                     best_profile = profile
         return best_profile
     
-    def get_session_report(self) -> Dict[str, Any]:
+    def get_session_report(self) -> dict[str, Any]:
         if not self.action_sequence:
             return {"total_tokens": 0, "actions": 0}
         total_tokens = sum(t for _, _, t in self.action_sequence)
-        by_site: Dict[str, int] = defaultdict(int)
-        by_profile: Dict[str, int] = defaultdict(int)
+        by_site: dict[str, int] = defaultdict(int)
+        by_profile: dict[str, int] = defaultdict(int)
         for site, profile, tokens in self.action_sequence:
             by_site[site] += tokens
             by_profile[profile.value] += tokens
@@ -386,16 +380,15 @@ class SessionTokenOptimizer:
 
 class CrossSiteKnowledgeBase:
     def __init__(self) -> None:
-        self.pattern_success: Dict[str, float] = defaultdict(float)
-        self.site_signatures: Dict[str, set] = defaultdict(set)
-        self.pattern_sites: Dict[str, set] = defaultdict(set)
+        self.pattern_success: dict[str, float] = defaultdict(float)
+        self.site_signatures: dict[str, set] = defaultdict(set)
+        self.pattern_sites: dict[str, set] = defaultdict(set)
     
     def extract_pattern(self, selector: str) -> str:
         pattern = selector
         pattern = re.sub(r'\[([a-z-]+)="[^"]+"\]', r'[\1=*]', pattern)
         pattern = re.sub(r'#([a-zA-Z0-9_-]+)', r'#[id*="*"]', pattern)
-        pattern = re.sub(r'\.([a-zA-Z0-9_-]+)', r'[class*="*"]', pattern)
-        return pattern
+        return re.sub(r'\.([a-zA-Z0-9_-]+)', r'[class*="*"]', pattern)
     
     def record_success(self, site: str, selector: str, verified: bool) -> None:
         pattern = self.extract_pattern(selector)
@@ -412,12 +405,12 @@ class CrossSiteKnowledgeBase:
         site_count = len(self.pattern_sites.get(pattern, set()))
         return min(1.0, base + min(0.3, site_count * 0.05))
     
-    def recommend_for_site(self, site: str, candidates: List[str]) -> List[Tuple[str, float]]:
+    def recommend_for_site(self, site: str, candidates: list[str]) -> list[tuple[str, float]]:
         scored = [(c, 0.7 * self.get_pattern_score(c) + 0.3 * 0.5) for c in candidates]
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored
     
-    def get_transfer_report(self) -> Dict[str, Any]:
+    def get_transfer_report(self) -> dict[str, Any]:
         return {
             "total_patterns": len(self.pattern_success),
             "total_sites": len(self.site_signatures),

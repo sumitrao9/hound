@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "hound": {
+      "command": "hound-mcp",
+      "env": {
+        "HOUND_DEFAULT_BUDGET": "1200",
+        "HOUND_HEADLESS": "1"
+      }
+    }
+  }
+}

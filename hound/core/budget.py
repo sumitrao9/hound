@@ -20,9 +20,10 @@ billing.
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any
 
 CHARS_PER_TOKEN = 4.0
 
@@ -172,7 +173,7 @@ def fit_to_budget(
     rendered: dict[str, Any],
     budget: Budget,
     *,
-    rebuild: Optional[Callable] = None,
+    rebuild: Callable | None = None,
 ) -> tuple[dict[str, Any], BudgetReport]:
     """Clamp ``rendered`` until it fits ``budget``.
 

@@ -19,26 +19,24 @@ import logging
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any
 from urllib.parse import urlparse
-from collections import defaultdict
 
 from hound.core.budget import Budget, BudgetReport, Profile, estimate_tokens, fit_to_budget
+from hound.core.innovations import (
+    AdaptiveBudget,
+    CrossSiteKnowledgeBase,
+    PredictiveHealer,
+    PredictiveHealResult,
+    SemanticDiffer,
+    SessionTokenOptimizer,
+)
 from hound.core.refs import PageState, build_state, diff
 from hound.healing.selectors import (
     HealingOutcome,
     SelectorStore,
     generate_candidates,
     heal_async,
-)
-from hound.core.innovations import (
-    AdaptiveBudget,
-    SemanticDiffer,
-    PredictiveHealer,
-    SessionTokenOptimizer,
-    CrossSiteKnowledgeBase,
-    SemanticChange,
-    PredictiveHealResult,
 )
 
 _log = logging.getLogger(__name__)
@@ -296,8 +294,8 @@ class BudgetedBrowser:
         page: Any,
         store: SelectorStore,
         default_budget: Budget,
-        rate_limiter: Optional[RateLimiter] = None,
-        timeouts: Optional[TimeoutConfig] = None,
+        rate_limiter: RateLimiter | None = None,
+        timeouts: TimeoutConfig | None = None,
         enable_innovations: bool = True,
     ) -> None:
         self.page = page
@@ -309,11 +307,11 @@ class BudgetedBrowser:
         
         # All innovations - CONSULTED for decisions
         if enable_innovations:
-            self.adaptive_budget: Optional[AdaptiveBudget] = AdaptiveBudget(default_budget.max_tokens, default_budget.profile)
-            self.semantic_differ: Optional[SemanticDiffer] = SemanticDiffer()
-            self.predictive_healer: Optional[PredictiveHealer] = PredictiveHealer(store)
-            self.token_optimizer: Optional[SessionTokenOptimizer] = SessionTokenOptimizer()
-            self.cross_site_kb: Optional[CrossSiteKnowledgeBase] = CrossSiteKnowledgeBase()
+            self.adaptive_budget: AdaptiveBudget | None = AdaptiveBudget(default_budget.max_tokens, default_budget.profile)
+            self.semantic_differ: SemanticDiffer | None = SemanticDiffer()
+            self.predictive_healer: PredictiveHealer | None = PredictiveHealer(store)
+            self.token_optimizer: SessionTokenOptimizer | None = SessionTokenOptimizer()
+            self.cross_site_kb: CrossSiteKnowledgeBase | None = CrossSiteKnowledgeBase()
         else:
             self.adaptive_budget = None
             self.semantic_differ = None
@@ -321,7 +319,7 @@ class BudgetedBrowser:
             self.token_optimizer = None
             self.cross_site_kb = None
         
-        self._previous: Optional[PageState] = None
+        self._previous: PageState | None = None
         self._session_spend: list[dict[str, Any]] = []
         self._closed = False
 
@@ -346,7 +344,7 @@ class BudgetedBrowser:
 
     async def snapshot(
         self,
-        budget: Optional[Budget] = None,
+        budget: Budget | None = None,
         delta: bool = True,
     ) -> ActionResult:
         """Return a budgeted page snapshot with semantic diff.
@@ -416,7 +414,7 @@ class BudgetedBrowser:
         action: str,
         target: str,
         value: str | None = None,
-        budget: Optional[Budget] = None,
+        budget: Budget | None = None,
     ) -> ActionResult:
         site = _site_of(self.page.url)
         
@@ -443,10 +441,9 @@ class BudgetedBrowser:
                 site = _site_of(self.page.url)
                 
                 # HOUND INNOVATION: Cross-site knowledge for healing recommendations
-                cross_site_candidates = []
                 if self.cross_site_kb:
                     base_candidates = generate_candidates(target)[:12]
-                    cross_site_candidates = self.cross_site_kb.recommend_for_site(site, base_candidates)
+                    self.cross_site_kb.recommend_for_site(site, base_candidates)
                 
                 heal_result = await self.predictive_healer.heal_with_explanation(
                     original=target,

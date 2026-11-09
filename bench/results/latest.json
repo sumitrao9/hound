@@ -1,0 +1,143 @@
+{
+  "budget_tokens": 1200,
+  "profile": "balanced",
+  "pages": [
+    {
+      "url": "https://example.com",
+      "dom_elements": 114,
+      "conventional_total_tokens": 8781,
+      "hound_total_tokens": 614,
+      "reduction_pct": 93.0,
+      "steps": [
+        {
+          "label": "open",
+          "conventional_tokens": 503,
+          "hound_tokens": 29
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 503,
+          "hound_tokens": 24
+        },
+        {
+          "label": "act:click",
+          "conventional_tokens": 1555,
+          "hound_tokens": 35
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 1555,
+          "hound_tokens": 451
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 1555,
+          "hound_tokens": 25
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 1555,
+          "hound_tokens": 25
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 1555,
+          "hound_tokens": 25
+        }
+      ]
+    },
+    {
+      "url": "https://news.ycombinator.com",
+      "dom_elements": 37,
+      "conventional_total_tokens": 1687,
+      "hound_total_tokens": 192,
+      "reduction_pct": 88.6,
+      "steps": [
+        {
+          "label": "open",
+          "conventional_tokens": 241,
+          "hound_tokens": 48
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        },
+        {
+          "label": "act:click",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 241,
+          "hound_tokens": 24
+        }
+      ]
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Web_scraping",
+      "dom_elements": 1996,
+      "conventional_total_tokens": 212358,
+      "hound_total_tokens": 1145,
+      "reduction_pct": 99.5,
+      "steps": [
+        {
+          "label": "open",
+          "conventional_tokens": 26544,
+          "hound_tokens": 819
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 26544,
+          "hound_tokens": 25
+        },
+        {
+          "label": "act:click",
+          "conventional_tokens": 26544,
+          "hound_tokens": 139
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 26544,
+          "hound_tokens": 25
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 26544,
+          "hound_tokens": 25
+        },
+        {
+          "label": "act:fill",
+          "conventional_tokens": 26546,
+          "hound_tokens": 62
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 26546,
+          "hound_tokens": 25
+        },
+        {
+          "label": "snapshot",
+          "conventional_tokens": 26546,
+          "hound_tokens": 25
+        }
+      ]
+    }
+  ]
+}

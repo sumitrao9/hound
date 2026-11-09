@@ -73,8 +73,13 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "S", "C4", "RET", "SIM"]
-ignore = ["S101"]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401", "B007", "S110", "S112", "S324"]
+"bench/*" = ["S110", "S112"]
+"hound/mcp/*" = ["B008"]
 
 
 [tool.mypy]

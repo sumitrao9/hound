@@ -5,8 +5,9 @@ Run with: pytest tests/test_engine_live.py -v -m live
 """
 
 import pytest
+
 from hound.core.budget import Budget, Profile
-from hound.core.engine import BudgetedBrowser, validate_url, TimeoutConfig, RateLimiter
+from hound.core.engine import BudgetedBrowser, RateLimiter, TimeoutConfig, validate_url
 
 
 class TestURLValidation:
@@ -110,8 +111,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_goto_valid_url(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -125,8 +124,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_snapshot_delta(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -142,8 +139,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_act_click(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -158,8 +153,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_act_fill(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -174,8 +167,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_find_elements(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -189,8 +180,6 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_budget_enforcement(self, browser_page):
-        from hound.core.engine import BudgetedBrowser
-        from hound.core.budget import Budget, Profile
         from hound.healing.selectors import SelectorStore
 
         store = SelectorStore(":memory:")
@@ -203,8 +192,7 @@ class TestBudgetedBrowserLive:
 
     @pytest.mark.asyncio
     async def test_rate_limiter_respected(self, browser_page):
-        from hound.core.engine import BudgetedBrowser, RateLimiter
-        from hound.core.budget import Budget
+        from hound.core.engine import RateLimiter
         from hound.healing.selectors import SelectorStore
 
         limiter = RateLimiter(max_requests=2, window_seconds=1)
