@@ -1,0 +1,31 @@
+{
+  "name": "hound-browser-mcp",
+  "version": "0.3.0",
+  "description": "Token-budgeted, self-healing browser automation MCP server for AI agents. Delta snapshots, selector healing, stdio + hosted HTTP/Streamable MCP.",
+  "author": "Sumit Yadav",
+  "repository": "https://github.com/sumitrao9/hound",
+  "license": "MIT",
+  "homepage": "https://github.com/sumitrao9/hound",
+  "mcp": {
+    "command": "hound-mcp",
+    "env": {
+      "HOUND_DEFAULT_BUDGET": "1200",
+      "HOUND_HEADLESS": "1"
+    }
+  },
+  "tools": [
+    "browser_open",
+    "browser_snapshot",
+    "browser_act",
+    "browser_find",
+    "browser_extract",
+    "browser_heal",
+    "browser_content",
+    "browser_eval",
+    "browser_wait",
+    "browser_scroll",
+    "browser_screenshot",
+    "browser_pdf",
+    "browser_budget_report"
+  ]
+}
