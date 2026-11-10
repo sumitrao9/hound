@@ -652,7 +652,6 @@ class BudgetedBrowser:
     ) -> ActionResult:
         """Capture a screenshot. Returns base64 PNG/JPEG metadata budgeted by size."""
         import base64
-        from hound.core.budget import BudgetReport
 
         budget = budget or self.default_budget
         started = time.perf_counter()
@@ -714,8 +713,6 @@ class BudgetedBrowser:
 
     async def evaluate(self, script: str, arg: Any = None, budget: Budget | None = None) -> ActionResult:
         """Evaluate JavaScript in the page and return a budgeted result."""
-        from hound.core.budget import BudgetReport
-
         budget = budget or self.default_budget
         started = time.perf_counter()
         site = _site_of(self.page.url)
@@ -838,7 +835,6 @@ class BudgetedBrowser:
     async def pdf(self, budget: Budget | None = None) -> ActionResult:
         """Generate a PDF of the current page. Returns base64 metadata (budget-aware)."""
         import base64
-        from hound.core.budget import BudgetReport
 
         budget = budget or self.default_budget
         started = time.perf_counter()
